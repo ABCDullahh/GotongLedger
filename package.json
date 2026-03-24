@@ -1,0 +1,32 @@
+{
+  "name": "gotong-ledger",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Transparent donation & expense tracking on blockchain",
+  "scripts": {
+    "dev": "node scripts/bootstrap-dev.mjs",
+    "dev:mobile": "node scripts/bootstrap-dev.mjs --mobile",
+    "reset": "node scripts/reset-dev.mjs",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm --filter contracts test",
+    "test:e2e": "pnpm --filter web test",
+    "test:e2e:ui": "pnpm --filter web test:ui",
+    "test:e2e:headed": "pnpm --filter web test:headed",
+    "test:all": "pnpm test && pnpm test:e2e",
+    "ipfs:up": "docker compose up -d ipfs",
+    "ipfs:logs": "docker compose logs -f ipfs",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down postgres",
+    "db:logs": "docker compose logs -f postgres",
+    "db:push": "pnpm --filter web exec prisma db push",
+    "services:up": "docker compose up -d ipfs postgres",
+    "services:down": "docker compose down",
+    "clean": "pnpm -r clean"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@9.0.0"
+}
