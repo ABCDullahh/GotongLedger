@@ -149,185 +149,150 @@ MilestoneReached, CampaignGoalSet, CampaignStatusChanged
 
 ### Three-Layer Data Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        USER INTERFACE                           │
-│                     Next.js 14 (App Router)                     │
-│         Tailwind CSS · shadcn/ui · Framer Motion · Recharts     │
-└────────────┬───────────────────┬───────────────────┬────────────┘
-             │                   │                   │
-             ▼                   ▼                   ▼
-┌────────────────────┐ ┌─────────────────┐ ┌──────────────────────┐
-│   LAYER 1: ON-CHAIN│ │ LAYER 2: IPFS   │ │ LAYER 3: OFF-CHAIN   │
-│   (Source of Truth) │ │ (Proof Storage) │ │ (Metadata Cache)     │
-│                    │ │                 │ │                      │
-│ • Campaign Events  │ │ • Expense       │ │ • Campaign Titles    │
-│ • Donation Logs    │ │   Receipts      │ │ • Descriptions       │
-│ • Expense Records  │ │ • Content-      │ │ • Categories         │
-│ • Milestones       │ │   Addressed     │ │ • File Metadata      │
-│ • Timestamps       │ │   (CID)         │ │                      │
-│ • Tx Hashes        │ │ • Immutable     │ │ SQLite / PostgreSQL  │
-│                    │ │   Files         │ │ (Prisma ORM)         │
-│ Ethereum (Hardhat/ │ │                 │ │                      │
-│ Sepolia)           │ │ Kubo / Pinata   │ │                      │
-└────────────────────┘ └─────────────────┘ └──────────────────────┘
+```mermaid
+graph TB
+    UI["<b>User Interface</b><br/>Next.js 14 · Tailwind · shadcn/ui<br/>Framer Motion · Recharts"]
+
+    subgraph Layer1["Layer 1: On-Chain (Source of Truth)"]
+        L1A[Campaign Events]
+        L1B[Donation Logs]
+        L1C[Expense Records]
+        L1D[Milestones & Goals]
+        L1E[Timestamps & Tx Hashes]
+    end
+
+    subgraph Layer2["Layer 2: IPFS (Proof Storage)"]
+        L2A[Expense Receipts]
+        L2B[Content-Addressed CID]
+        L2C[Immutable Files]
+    end
+
+    subgraph Layer3["Layer 3: Off-Chain (Metadata Cache)"]
+        L3A[Campaign Titles]
+        L3B[Descriptions & Categories]
+        L3C[File Metadata]
+    end
+
+    UI --> Layer1
+    UI --> Layer2
+    UI --> Layer3
+
+    style Layer1 fill:#1a0a0a,stroke:#FF5555,color:#FFB3AE
+    style Layer2 fill:#0a1a0a,stroke:#AED18D,color:#AED18D
+    style Layer3 fill:#0a0a1a,stroke:#AA8986,color:#E5E2E3
+    style UI fill:#131314,stroke:#FFB3AE,color:#E5E2E3
 ```
 
 ### Donation Flow
 
-```
-Donor                  Smart Contract              Treasury          IPFS
-  │                         │                         │                │
-  │  1. donate(campaignId)  │                         │                │
-  │  ──────────────────────>│                         │                │
-  │        {value: X ETH}   │                         │                │
-  │                         │  2. Forward ETH         │                │
-  │                         │  ───────────────────────>│                │
-  │                         │                         │                │
-  │                         │  3. Emit DonationReceived                │
-  │                         │  ◄──────────────────────                 │
-  │                         │                         │                │
-  │                         │  4. Check Milestones    │                │
-  │                         │  (auto if goal set)     │                │
-  │                         │                         │                │
-  │  5. Toast notification  │                         │                │
-  │  ◄──────────────────────│                         │                │
-  │  (via 15s polling)      │                         │                │
+```mermaid
+sequenceDiagram
+    participant D as Donor
+    participant SC as Smart Contract
+    participant T as Treasury
+    participant FE as Frontend (15s poll)
+
+    D->>SC: donate(campaignId) {value: X ETH}
+    SC->>T: Forward ETH to treasury
+    SC-->>SC: Emit DonationReceived event
+    SC-->>SC: Check milestones (if goal set)
+    alt Milestone reached
+        SC-->>SC: Emit MilestoneReached event
+    end
+    FE-->>FE: Poll detects new donation
+    FE-->>D: Toast notification
 ```
 
 ### Expense Recording Flow
 
-```
-Admin                  Smart Contract              IPFS            Database
-  │                         │                       │                 │
-  │  1. Upload proof doc    │                       │                 │
-  │  ──────────────────────────────────────────────>│                 │
-  │                         │                       │                 │
-  │  2. Receive CID         │                       │                 │
-  │  ◄──────────────────────────────────────────────│                 │
-  │                         │                       │                 │
-  │  3. recordExpense(      │                       │                 │
-  │     campaignId,         │                       │                 │
-  │     amount, category,   │                       │                 │
-  │     CID, note)          │                       │                 │
-  │  ──────────────────────>│                       │                 │
-  │                         │                       │                 │
-  │                         │  4. Emit ExpenseRecorded                │
-  │                         │  ◄──────────────────────                │
-  │                         │                       │                 │
-  │  5. Save file metadata  │                       │                 │
-  │  ────────────────────────────────────────────────────────────────>│
+```mermaid
+sequenceDiagram
+    participant A as Admin
+    participant IPFS as IPFS Storage
+    participant SC as Smart Contract
+    participant DB as Database
+
+    A->>IPFS: Upload proof document (PDF/JPG)
+    IPFS-->>A: Return CID (content hash)
+    A->>SC: recordExpense(campaignId, amount, category, CID, note)
+    SC-->>SC: Validate auth & inputs
+    SC-->>SC: Emit ExpenseRecorded event
+    A->>DB: Save file metadata (CID, filename, size)
 ```
 
-### Milestone Auto-Detection Flow
+### Milestone Auto-Detection
 
-```
-Donation Received
-       │
-       ▼
-┌──────────────┐     ┌─────────────────┐     ┌──────────────────┐
-│ campaignGoal │────>│  currentAmount  │────>│ Check all         │
-│ set? (>0)    │ yes │  / goalWei      │     │ milestones        │
-└──────┬───────┘     │  = percentage   │     │ for this campaign │
-       │ no          └─────────────────┘     └────────┬─────────┘
-       ▼                                              │
-  (skip check)                                        ▼
-                                          ┌───────────────────────┐
-                                          │ For each milestone:   │
-                                          │ if % >= target AND    │
-                                          │    reachedAt == 0     │
-                                          │ → Set reachedAt       │
-                                          │ → Emit MilestoneReached│
-                                          └───────────────────────┘
+```mermaid
+flowchart TD
+    A[Donation Received] --> B{Campaign goal set?}
+    B -->|No| C[Skip milestone check]
+    B -->|Yes| D[Calculate: currentAmount / goalWei × 100]
+    D --> E{For each milestone}
+    E --> F{percentage >= target<br/>AND reachedAt == 0?}
+    F -->|Yes| G[Set reachedAt = now<br/>Emit MilestoneReached]
+    F -->|No| H[Skip]
+    G --> E
+    H --> E
+
+    style A fill:#FF5555,color:#fff
+    style G fill:#AED18D,color:#000
 ```
 
 ### Service Architecture
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                     Docker Compose                            │
-│                                                              │
-│  ┌─────────────────┐  ┌─────────────────┐                   │
-│  │  IPFS Kubo       │  │  PostgreSQL 16  │                   │
-│  │  Port: 5001/8080 │  │  Port: 5432     │                   │
-│  │  (API / Gateway) │  │  gotongledger   │                   │
-│  └────────┬────────┘  └────────┬────────┘                   │
-│           │                    │                             │
-└───────────┼────────────────────┼─────────────────────────────┘
-            │                    │
-            ▼                    ▼
-┌───────────────────────────────────────────────────────────────┐
-│                   Next.js 14 (Port: 3939)                     │
-│                                                               │
-│  App Router          API Routes           Prisma ORM          │
-│  ┌────────────┐     ┌──────────────┐     ┌──────────────┐   │
-│  │ 10 Pages   │     │ /api/campaigns│     │ SQLite (dev) │   │
-│  │ + Layouts  │     │ /api/ipfs/*  │     │ PostgreSQL   │   │
-│  │            │     │ /api/og      │     │ (production) │   │
-│  └────────────┘     │ /api/health  │     └──────────────┘   │
-│                     │ /api/chain   │                         │
-│  wagmi + viem       └──────────────┘                         │
-│  ┌─────────────────────────────┐                             │
-│  │ MetaMask · WalletConnect    │                             │
-│  │ Coinbase Wallet             │                             │
-│  └──────────────┬──────────────┘                             │
-│                 │                                             │
-└─────────────────┼─────────────────────────────────────────────┘
-                  │
-                  ▼
-┌───────────────────────────────────────────────────────────────┐
-│              Hardhat Node (Port: 8545)                         │
-│              Chain ID: 31337                                  │
-│                                                               │
-│  CampaignLedger.sol                                           │
-│  ├── createCampaign()        ├── setCampaignGoal()            │
-│  ├── donate()                ├── setMilestone()               │
-│  ├── recordExpense()         ├── setCampaignActive()          │
-│  └── Events: CampaignCreated, DonationReceived,               │
-│       ExpenseRecorded, MilestoneReached                       │
-└───────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Docker["Docker Compose"]
+        IPFS["IPFS Kubo<br/>:5001 (API) · :8080 (Gateway)"]
+        PG["PostgreSQL 16<br/>:5432"]
+    end
+
+    subgraph NextJS["Next.js 14 (:3939)"]
+        Pages["10 Pages<br/>(App Router)"]
+        API["API Routes<br/>/api/campaigns<br/>/api/ipfs/*<br/>/api/og · /api/health"]
+        Prisma["Prisma ORM<br/>SQLite / PostgreSQL"]
+        Wagmi["wagmi + viem<br/>MetaMask · WalletConnect<br/>Coinbase Wallet"]
+    end
+
+    subgraph Hardhat["Hardhat Node (:8545)"]
+        Contract["CampaignLedger.sol<br/>createCampaign · donate<br/>recordExpense · setMilestone"]
+    end
+
+    IPFS --> API
+    PG --> Prisma
+    Wagmi --> Contract
+    Pages --> API
+    API --> Prisma
+
+    style Docker fill:#1C1B1C,stroke:#AA8986,color:#E5E2E3
+    style NextJS fill:#131314,stroke:#FFB3AE,color:#E5E2E3
+    style Hardhat fill:#1C1B1C,stroke:#FF5555,color:#E5E2E3
 ```
 
 ### Transparency Report Pipeline
 
-```
-Campaign Data Request
-       │
-       ▼
-┌──────────────────┐
-│ Fetch on-chain:  │
-│ • Donations      │
-│ • Expenses       │
-│ • Campaign info  │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐     ┌────────────────────────┐
-│ Anomaly Detection│────>│ Check for:             │
-│                  │     │ • Missing IPFS proofs  │
-│                  │     │ • High expense ratio   │
-│                  │     │   (>50% of donations)  │
-└────────┬─────────┘     └────────────────────────┘
-         │
-         ▼
-┌──────────────────┐
-│ Generate Report: │
-│ • Summary cards  │
-│ • Donut chart    │
-│ • Bar chart      │
-│ • Category table │
-│ • Expense ledger │
-│ • Donation ledger│
-│ • Confidence %   │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ Export Options:   │
-│ • CSV download   │
-│ • Print report   │
-│ • Share link     │
-└──────────────────┘
+```mermaid
+flowchart TD
+    A[Campaign Data Request] --> B[Fetch on-chain data<br/>Donations · Expenses · Campaign info]
+    B --> C[Anomaly Detection]
+    C --> D{Issues found?}
+    D -->|Missing IPFS proofs| E["⚠️ Flag anomaly"]
+    D -->|High expense ratio >50%| E
+    D -->|All clear| F["✅ No anomalies"]
+    E --> G[Generate Report]
+    F --> G
+    G --> H[Summary Cards<br/>Raised · Spent · Balance · Utilization %]
+    G --> I[Charts<br/>Donut · Bar · Category breakdown]
+    G --> J[Ledger Tables<br/>Expenses · Donations]
+    G --> K[Confidence Score<br/>0-100%]
+    H --> L[Export: CSV · Print · Share]
+    I --> L
+    J --> L
+    K --> L
+
+    style A fill:#FF5555,color:#fff
+    style F fill:#AED18D,color:#000
+    style E fill:#FFB4AB,color:#000
 ```
 
 ---
@@ -399,24 +364,6 @@ Fonts:     Epilogue (headlines) · Inter (body) · Space Grotesk (data)
 - `aria-label="Site footer"` on footer
 - Keyboard navigable throughout
 - Focus rings on all interactive elements
-
----
-
-## Demo Data
-
-The seed script (`contracts/scripts/seed-full-demo.ts`) creates:
-
-| # | Campaign | Category | Goal | Raised | Spent | Donors | Expenses |
-|---|----------|----------|------|--------|-------|--------|----------|
-| 1 | Clean Water Initiative Jakarta | Health | 10 ETH | 4.00 ETH | 2.00 ETH | 3 | 2 |
-| 2 | Solar Grid Initiative #4 | Environment | 5 ETH | 4.50 ETH | 2.50 ETH | 2 | 2 |
-| 3 | Education for All | Education | 3 ETH | 1.25 ETH | 0.90 ETH | 2 | 2 |
-| 4 | Rural Health Clinic Sumatra | Health | 15 ETH | 8.75 ETH | 6.50 ETH | 5 | 3 |
-| 5 | Urban Farming Collective | Community | 8 ETH | 5.35 ETH | 3.00 ETH | 4 | 3 |
-| 6 | Disaster Relief Bridge Sulawesi | Infrastructure | 20 ETH | 12.00 ETH | 9.50 ETH | 5 | 3 |
-| **Total** | | **5 categories** | **61 ETH** | **35.85 ETH** | **24.40 ETH** | **9 unique** | **15** |
-
-**Expense categories used:** Equipment, Logistics, Personnel, Medical, Shelter, Education, Food
 
 ---
 

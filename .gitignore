@@ -63,3 +63,6 @@ megaprompt.md
 # Reference files
 Example/
 beforeupdate/
+
+# Seed / demo data scripts
+contracts/scripts/seed-*.ts
