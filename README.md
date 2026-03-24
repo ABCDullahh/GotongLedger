@@ -145,6 +145,193 @@ MilestoneReached, CampaignGoalSet, CampaignStatusChanged
 
 ---
 
+## Architecture
+
+### Three-Layer Data Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        USER INTERFACE                           │
+│                     Next.js 14 (App Router)                     │
+│         Tailwind CSS · shadcn/ui · Framer Motion · Recharts     │
+└────────────┬───────────────────┬───────────────────┬────────────┘
+             │                   │                   │
+             ▼                   ▼                   ▼
+┌────────────────────┐ ┌─────────────────┐ ┌──────────────────────┐
+│   LAYER 1: ON-CHAIN│ │ LAYER 2: IPFS   │ │ LAYER 3: OFF-CHAIN   │
+│   (Source of Truth) │ │ (Proof Storage) │ │ (Metadata Cache)     │
+│                    │ │                 │ │                      │
+│ • Campaign Events  │ │ • Expense       │ │ • Campaign Titles    │
+│ • Donation Logs    │ │   Receipts      │ │ • Descriptions       │
+│ • Expense Records  │ │ • Content-      │ │ • Categories         │
+│ • Milestones       │ │   Addressed     │ │ • File Metadata      │
+│ • Timestamps       │ │   (CID)         │ │                      │
+│ • Tx Hashes        │ │ • Immutable     │ │ SQLite / PostgreSQL  │
+│                    │ │   Files         │ │ (Prisma ORM)         │
+│ Ethereum (Hardhat/ │ │                 │ │                      │
+│ Sepolia)           │ │ Kubo / Pinata   │ │                      │
+└────────────────────┘ └─────────────────┘ └──────────────────────┘
+```
+
+### Donation Flow
+
+```
+Donor                  Smart Contract              Treasury          IPFS
+  │                         │                         │                │
+  │  1. donate(campaignId)  │                         │                │
+  │  ──────────────────────>│                         │                │
+  │        {value: X ETH}   │                         │                │
+  │                         │  2. Forward ETH         │                │
+  │                         │  ───────────────────────>│                │
+  │                         │                         │                │
+  │                         │  3. Emit DonationReceived                │
+  │                         │  ◄──────────────────────                 │
+  │                         │                         │                │
+  │                         │  4. Check Milestones    │                │
+  │                         │  (auto if goal set)     │                │
+  │                         │                         │                │
+  │  5. Toast notification  │                         │                │
+  │  ◄──────────────────────│                         │                │
+  │  (via 15s polling)      │                         │                │
+```
+
+### Expense Recording Flow
+
+```
+Admin                  Smart Contract              IPFS            Database
+  │                         │                       │                 │
+  │  1. Upload proof doc    │                       │                 │
+  │  ──────────────────────────────────────────────>│                 │
+  │                         │                       │                 │
+  │  2. Receive CID         │                       │                 │
+  │  ◄──────────────────────────────────────────────│                 │
+  │                         │                       │                 │
+  │  3. recordExpense(      │                       │                 │
+  │     campaignId,         │                       │                 │
+  │     amount, category,   │                       │                 │
+  │     CID, note)          │                       │                 │
+  │  ──────────────────────>│                       │                 │
+  │                         │                       │                 │
+  │                         │  4. Emit ExpenseRecorded                │
+  │                         │  ◄──────────────────────                │
+  │                         │                       │                 │
+  │  5. Save file metadata  │                       │                 │
+  │  ────────────────────────────────────────────────────────────────>│
+```
+
+### Milestone Auto-Detection Flow
+
+```
+Donation Received
+       │
+       ▼
+┌──────────────┐     ┌─────────────────┐     ┌──────────────────┐
+│ campaignGoal │────>│  currentAmount  │────>│ Check all         │
+│ set? (>0)    │ yes │  / goalWei      │     │ milestones        │
+└──────┬───────┘     │  = percentage   │     │ for this campaign │
+       │ no          └─────────────────┘     └────────┬─────────┘
+       ▼                                              │
+  (skip check)                                        ▼
+                                          ┌───────────────────────┐
+                                          │ For each milestone:   │
+                                          │ if % >= target AND    │
+                                          │    reachedAt == 0     │
+                                          │ → Set reachedAt       │
+                                          │ → Emit MilestoneReached│
+                                          └───────────────────────┘
+```
+
+### Service Architecture
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                     Docker Compose                            │
+│                                                              │
+│  ┌─────────────────┐  ┌─────────────────┐                   │
+│  │  IPFS Kubo       │  │  PostgreSQL 16  │                   │
+│  │  Port: 5001/8080 │  │  Port: 5432     │                   │
+│  │  (API / Gateway) │  │  gotongledger   │                   │
+│  └────────┬────────┘  └────────┬────────┘                   │
+│           │                    │                             │
+└───────────┼────────────────────┼─────────────────────────────┘
+            │                    │
+            ▼                    ▼
+┌───────────────────────────────────────────────────────────────┐
+│                   Next.js 14 (Port: 3939)                     │
+│                                                               │
+│  App Router          API Routes           Prisma ORM          │
+│  ┌────────────┐     ┌──────────────┐     ┌──────────────┐   │
+│  │ 10 Pages   │     │ /api/campaigns│     │ SQLite (dev) │   │
+│  │ + Layouts  │     │ /api/ipfs/*  │     │ PostgreSQL   │   │
+│  │            │     │ /api/og      │     │ (production) │   │
+│  └────────────┘     │ /api/health  │     └──────────────┘   │
+│                     │ /api/chain   │                         │
+│  wagmi + viem       └──────────────┘                         │
+│  ┌─────────────────────────────┐                             │
+│  │ MetaMask · WalletConnect    │                             │
+│  │ Coinbase Wallet             │                             │
+│  └──────────────┬──────────────┘                             │
+│                 │                                             │
+└─────────────────┼─────────────────────────────────────────────┘
+                  │
+                  ▼
+┌───────────────────────────────────────────────────────────────┐
+│              Hardhat Node (Port: 8545)                         │
+│              Chain ID: 31337                                  │
+│                                                               │
+│  CampaignLedger.sol                                           │
+│  ├── createCampaign()        ├── setCampaignGoal()            │
+│  ├── donate()                ├── setMilestone()               │
+│  ├── recordExpense()         ├── setCampaignActive()          │
+│  └── Events: CampaignCreated, DonationReceived,               │
+│       ExpenseRecorded, MilestoneReached                       │
+└───────────────────────────────────────────────────────────────┘
+```
+
+### Transparency Report Pipeline
+
+```
+Campaign Data Request
+       │
+       ▼
+┌──────────────────┐
+│ Fetch on-chain:  │
+│ • Donations      │
+│ • Expenses       │
+│ • Campaign info  │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐     ┌────────────────────────┐
+│ Anomaly Detection│────>│ Check for:             │
+│                  │     │ • Missing IPFS proofs  │
+│                  │     │ • High expense ratio   │
+│                  │     │   (>50% of donations)  │
+└────────┬─────────┘     └────────────────────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Generate Report: │
+│ • Summary cards  │
+│ • Donut chart    │
+│ • Bar chart      │
+│ • Category table │
+│ • Expense ledger │
+│ • Donation ledger│
+│ • Confidence %   │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Export Options:   │
+│ • CSV download   │
+│ • Print report   │
+│ • Share link     │
+└──────────────────┘
+```
+
+---
+
 ## Design System — Void Monolith
 
 ```
@@ -154,12 +341,82 @@ Secondary: #AED18D (Soft Lime)
 Fonts:     Epilogue (headlines) · Inter (body) · Space Grotesk (data)
 ```
 
-- Dark-only editorial theme
-- Ghost borders (1px at 15% opacity)
-- Tonal layering (no shadows)
-- 4px sharp corners
-- Glassmorphism for floating elements
-- Neon glow on hover
+**Design Rules:**
+- Dark-only editorial theme — no light mode
+- Ghost borders: `1px solid outline-variant at 15% opacity` — no standard borders
+- Tonal layering via background color shifts — no drop shadows
+- 4px sharp corners (`rounded-sm`) — no rounded bubbles
+- Glassmorphism: `backdrop-blur(20px)` at 12% opacity for floating elements
+- Neon glow: `box-shadow 15px blur primary at 20% opacity` on hover
+- Labels: `font-label uppercase tracking-widest 10px` — technical terminal style
+- 90% neutrals — coral red & lime green only for critical actions/signals
+
+**Surface Hierarchy:**
+```
+#131314  →  Base (surface)
+#1C1B1C  →  Cards (surface-container-low)
+#201F20  →  Sections (surface-container)
+#2A2A2B  →  Elevated (surface-container-high)
+#353436  →  Inputs (surface-container-highest)
+#3A393A  →  Hover (surface-bright)
+#0E0E0F  →  Recessed / Footer (tonal-shift)
+```
+
+---
+
+## Security
+
+### Smart Contract Security
+- **OpenZeppelin AccessControl** — Role-based permissions (Admin, Operator, Owner)
+- **ReentrancyGuard** — Protection against reentrancy attacks on `donate()`
+- **Input validation** — Custom errors for invalid treasury, empty CID, empty category
+- **Treasury forwarding** — Donations forwarded directly to treasury address, not held in contract
+
+### API Security
+- **Input validation** — All API routes validate request body/params
+- **Ethereum address regex** — `^0x[0-9a-fA-F]{40}$` format check
+- **CID format validation** — `^[a-zA-Z0-9]+$` to prevent path traversal
+- **Filename sanitization** — Strip non-alphanumeric characters on IPFS upload
+- **File type whitelist** — Only PDF, JPG, PNG allowed for proof documents
+- **File size limit** — 10MB maximum upload
+- **Input truncation** — OG image API truncates inputs to prevent abuse
+
+### Frontend Security
+- **No secrets in client code** — All sensitive values via environment variables
+- **CSP-safe** — No inline scripts or eval
+- **XSS prevention** — React's built-in escaping + no `dangerouslySetInnerHTML`
+
+---
+
+## Accessibility
+
+- `aria-label` on all interactive elements (buttons, links, inputs)
+- `aria-expanded` on mobile menu toggle
+- `aria-current="page"` on active breadcrumb
+- `aria-hidden="true"` on decorative icons
+- `aria-label="Breadcrumb"` on navigation
+- `aria-label="Main navigation"` on navbar
+- `aria-label="Site footer"` on footer
+- Keyboard navigable throughout
+- Focus rings on all interactive elements
+
+---
+
+## Demo Data
+
+The seed script (`contracts/scripts/seed-full-demo.ts`) creates:
+
+| # | Campaign | Category | Goal | Raised | Spent | Donors | Expenses |
+|---|----------|----------|------|--------|-------|--------|----------|
+| 1 | Clean Water Initiative Jakarta | Health | 10 ETH | 4.00 ETH | 2.00 ETH | 3 | 2 |
+| 2 | Solar Grid Initiative #4 | Environment | 5 ETH | 4.50 ETH | 2.50 ETH | 2 | 2 |
+| 3 | Education for All | Education | 3 ETH | 1.25 ETH | 0.90 ETH | 2 | 2 |
+| 4 | Rural Health Clinic Sumatra | Health | 15 ETH | 8.75 ETH | 6.50 ETH | 5 | 3 |
+| 5 | Urban Farming Collective | Community | 8 ETH | 5.35 ETH | 3.00 ETH | 4 | 3 |
+| 6 | Disaster Relief Bridge Sulawesi | Infrastructure | 20 ETH | 12.00 ETH | 9.50 ETH | 5 | 3 |
+| **Total** | | **5 categories** | **61 ETH** | **35.85 ETH** | **24.40 ETH** | **9 unique** | **15** |
+
+**Expense categories used:** Equipment, Logistics, Personnel, Medical, Shelter, Education, Food
 
 ---
 
