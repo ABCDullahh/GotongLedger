@@ -1,0 +1,54 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./gotong-ledger.db"
+}
+
+// Chain fingerprint for detecting local chain resets
+model ChainFingerprint {
+  id              Int      @id @default(autoincrement())
+  chainId         Int
+  contractAddress String
+  genesisHash     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([chainId])
+}
+
+// Campaign metadata (not source of truth, just cache/metadata)
+model CampaignMetadata {
+  id              Int      @id @default(autoincrement())
+  chainId         Int
+  contractAddress String
+  campaignId      Int
+  title           String
+  description     String
+  category        String   @default("Other")
+  location        String?
+  coverImage      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([chainId, contractAddress, campaignId])
+}
+
+// File metadata for uploaded proofs
+model FileMeta {
+  id               Int      @id @default(autoincrement())
+  txHash           String?
+  cid              String
+  originalFileName String
+  mimeType         String
+  size             Int
+  createdAt        DateTime @default(now())
+
+  @@index([cid])
+  @@index([txHash])
+}

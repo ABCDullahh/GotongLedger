@@ -1,0 +1,65 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+dist
+.next
+out
+
+# Hardhat
+contracts/cache
+contracts/artifacts
+contracts/typechain-types
+contracts/ignition/deployments
+
+# Auto-generated (regenerated on each deploy)
+web/src/lib/deployment.json
+web/src/lib/contracts.ts
+
+# Database
+web/prisma/*.db
+web/prisma/*.db-journal
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage
+coverage.json
+
+# Playwright test artifacts
+web/test-results/
+web/playwright-report/
+.playwright/
+.playwright-mcp/
+
+# AI tooling
+CLAUDE.md
+.claude/
+megaprompt.md
+
+# Misc
+*.tsbuildinfo
+
+# Reference files
+Example/
+beforeupdate/

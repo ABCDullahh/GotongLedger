@@ -1,0 +1,224 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* === The Kinetic Ledger — Void Monolith Theme === */
+
+    /* Surface Hierarchy (Deep Void) */
+    --surface: 240 4% 7%;            /* #131314 */
+    --surface-dim: 240 4% 7%;        /* #131314 */
+    --surface-container-lowest: 240 6% 5%;  /* #0E0E0F */
+    --surface-container-low: 300 3% 11%;    /* #1C1B1C */
+    --surface-container: 300 2% 12%;        /* #201F20 */
+    --surface-container-high: 240 2% 17%;   /* #2A2A2B */
+    --surface-container-highest: 240 2% 21%; /* #353436 */
+    --surface-bright: 240 1% 23%;           /* #3A393A */
+
+    /* Semantic Tokens */
+    --background: 240 4% 7%;         /* #131314 */
+    --foreground: 210 9% 89%;        /* #E5E2E3 */
+
+    --card: 300 3% 11%;              /* #1C1B1C surface-container-low */
+    --card-foreground: 210 9% 89%;   /* #E5E2E3 */
+
+    --popover: 240 2% 17%;           /* #2A2A2B */
+    --popover-foreground: 210 9% 89%;
+
+    /* Primary - Coral Red */
+    --primary: 0 100% 83%;           /* #FFB3AE */
+    --primary-foreground: 0 100% 18%; /* #5D000A */
+    --primary-container: 0 100% 67%; /* #FF5555 */
+
+    /* Secondary - Soft Lime */
+    --secondary: 92 42% 69%;         /* #AED18D */
+    --secondary-foreground: 97 53% 21%; /* #34511B */
+    --secondary-container: 97 53% 21%; /* #34511B */
+
+    /* Accent */
+    --accent: 240 2% 17%;            /* surface-container-high */
+    --accent-foreground: 210 9% 89%;
+
+    /* Success */
+    --success: 92 42% 69%;           /* #AED18D same as secondary */
+    --success-foreground: 97 53% 21%;
+
+    /* Destructive / Error */
+    --destructive: 0 100% 84%;       /* #FFB4AB */
+    --destructive-foreground: 0 0% 100%;
+    --error-container: 0 100% 29%;   /* #93000A */
+
+    /* Muted */
+    --muted: 240 2% 17%;             /* #2A2A2B */
+    --muted-foreground: 210 9% 60%;  /* ~#8A8A8F */
+
+    /* Outline & Border */
+    --outline: 3 14% 59%;            /* #AA8986 */
+    --outline-variant: 3 24% 30%;    /* #5A403E */
+    --border: 3 24% 30%;             /* ghost border color base */
+    --input: 240 2% 21%;             /* surface-container-highest */
+    --ring: 0 100% 67%;              /* #FF5555 */
+
+    /* On Surface */
+    --on-surface: 210 9% 89%;        /* #E5E2E3 */
+    --on-surface-variant: 3 23% 81%; /* #E3BEBB */
+
+    /* Radius - Sharp edges */
+    --radius: 0.25rem;               /* 4px */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border/15;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Editorial Typography */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Epilogue', system-ui, sans-serif;
+    @apply font-bold tracking-tight;
+  }
+
+  /* Selection */
+  ::selection {
+    background-color: hsl(0 100% 67% / 0.3);
+    color: hsl(0 100% 83%);
+  }
+}
+
+@layer components {
+  /* === Ghost Border (The No-Line Rule) === */
+  .ghost-border {
+    border: 1px solid hsl(var(--outline-variant) / 0.15);
+  }
+
+  .ghost-border-hover:hover {
+    border-color: hsl(var(--primary) / 0.4);
+  }
+
+  /* === Glass Panel (Floating elements) === */
+  .glass-panel {
+    background: hsl(var(--surface-container-highest) / 0.12);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* === Mesh Gradient Hero === */
+  .mesh-gradient-hero {
+    background:
+      radial-gradient(at 0% 0%, hsl(var(--primary) / 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, hsl(var(--secondary) / 0.05) 0px, transparent 50%);
+  }
+
+  /* === Tonal Shift (Footer, recessed areas) === */
+  .tonal-shift {
+    background-color: #0E0E0F;
+  }
+
+  /* === Surface Layers === */
+  .surface-base { background-color: #131314; }
+  .surface-low { background-color: #1C1B1C; }
+  .surface-container { background-color: #201F20; }
+  .surface-high { background-color: #2A2A2B; }
+  .surface-highest { background-color: #353436; }
+  .surface-bright { background-color: #3A393A; }
+
+  /* === Gradient Progress Bars === */
+  .gradient-raised {
+    background: linear-gradient(to right, #FF5555, #FFB3AE);
+  }
+
+  .gradient-spent {
+    background: linear-gradient(to right, #34511B, #AED18D);
+  }
+
+  /* === Neon Glow (Hover intent) === */
+  .neon-glow:hover {
+    box-shadow: 0 0 15px hsl(var(--primary) / 0.2);
+  }
+
+  .neon-glow-active {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+  }
+
+  /* === Typography Classes === */
+  .font-headline {
+    font-family: 'Epilogue', system-ui, sans-serif;
+  }
+
+  .font-body {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  .font-label {
+    font-family: 'Space Grotesk', monospace;
+  }
+
+  /* === Label Style (Technical Terminal) === */
+  .label-style {
+    font-family: 'Space Grotesk', monospace;
+    @apply text-[10px] uppercase tracking-[0.15em];
+    color: hsl(var(--outline));
+  }
+
+  /* === Text Gradient === */
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(to right, #FFB3AE, #FF5555);
+  }
+
+  /* === Card Hover (Tonal shift, not shadow) === */
+  .card-hover {
+    @apply transition-all duration-300;
+  }
+
+  .card-hover:hover {
+    background-color: hsl(var(--surface-container));
+    border-color: hsl(var(--primary) / 0.4);
+  }
+}
+
+@layer utilities {
+  .animate-in {
+    animation: fade-in 0.3s ease-out, slide-up 0.4s ease-out;
+  }
+
+  /* Hide scrollbar */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* GPU acceleration */
+  .will-change-transform {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  img, video {
+    content-visibility: auto;
+  }
+
+  .overflow-x-auto, .overflow-y-auto, .overflow-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  header, nav, [class*="fixed"], [class*="sticky"] {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  section {
+    contain: layout style;
+  }
+}
