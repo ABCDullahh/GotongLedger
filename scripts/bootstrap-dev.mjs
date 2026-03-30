@@ -317,23 +317,23 @@ async function main() {
 
     if (MOBILE_MODE) {
       console.log(`
-📱 Web App:    http://localhost:3000
-📱 Mobile:     http://0.0.0.0:3000 (use your computer's IP)
+📱 Web App:    http://localhost:8881
+📱 Mobile:     http://0.0.0.0:8881 (use your computer's IP)
 ⛓️  RPC:        http://127.0.0.1:8545
-📦 IPFS API:   http://127.0.0.1:5001
-🌐 IPFS GW:    http://127.0.0.1:8080
+📦 IPFS API:   http://127.0.0.1:5881
+🌐 IPFS GW:    http://127.0.0.1:8882
 
-💡 To access from mobile, use: http://<YOUR_IP>:3000
+💡 To access from mobile, use: http://<YOUR_IP>:8881
    Find your IP with: ipconfig (Windows) or ifconfig (Mac/Linux)
 
 Press Ctrl+C to stop all services
       `);
     } else {
       console.log(`
-📱 Web App:    http://localhost:3000
+📱 Web App:    http://localhost:8881
 ⛓️  RPC:        http://127.0.0.1:8545
-📦 IPFS API:   http://127.0.0.1:5001
-🌐 IPFS GW:    http://127.0.0.1:8080
+📦 IPFS API:   http://127.0.0.1:5881
+🌐 IPFS GW:    http://127.0.0.1:8882
 
 Press Ctrl+C to stop all services
       `);

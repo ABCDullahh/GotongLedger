@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./gotong-ledger.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // Chain fingerprint for detecting local chain resets

@@ -6,8 +6,8 @@ services:
     container_name: gotong-ledger-ipfs
     restart: unless-stopped
     ports:
-      - "5001:5001"  # API
-      - "8080:8080"  # Gateway
+      - "5881:5001"  # API
+      - "8882:8080"  # Gateway
     volumes:
       - ipfs_data:/data/ipfs
     environment:
@@ -23,7 +23,7 @@ services:
     container_name: gotong-ledger-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5883:5432"
     environment:
       POSTGRES_USER: gotong
       POSTGRES_PASSWORD: gotong123
