@@ -67,10 +67,10 @@
 | **Frontend** | Next.js 14, Tailwind CSS, shadcn/ui, Framer Motion, Recharts |
 | **Blockchain** | Solidity 0.8.24, Hardhat, OpenZeppelin (AccessControl, ReentrancyGuard) |
 | **Web3** | wagmi v2, viem, MetaMask, WalletConnect v2, Coinbase Wallet |
-| **Storage** | IPFS (Kubo/Pinata), SQLite/PostgreSQL (Prisma ORM) |
+| **Storage** | IPFS (Kubo/Pinata), PostgreSQL 16 (Prisma ORM) |
 | **Testing** | Playwright (300+ E2E tests), Hardhat contract tests |
 | **Design** | Void Monolith dark editorial theme (Epilogue + Inter + Space Grotesk) |
-| **Deployment** | Docker, GCP Cloud Run ready, Sepolia testnet config |
+| **Deployment** | Docker Compose, standalone build, Sepolia testnet config |
 
 ---
 
@@ -243,14 +243,14 @@ flowchart TD
 ```mermaid
 graph TB
     subgraph Docker["Docker Compose"]
-        IPFS["IPFS Kubo<br/>:5001 (API) · :8080 (Gateway)"]
-        PG["PostgreSQL 16<br/>:5432"]
+        IPFS["IPFS Kubo<br/>:5881 (API) · :8882 (Gateway)"]
+        PG["PostgreSQL 16<br/>:5883"]
     end
 
-    subgraph NextJS["Next.js 14 (:3939)"]
+    subgraph NextJS["Next.js 14 (:8881)"]
         Pages["10 Pages<br/>(App Router)"]
         API["API Routes<br/>/api/campaigns<br/>/api/ipfs/*<br/>/api/og · /api/health"]
-        Prisma["Prisma ORM<br/>SQLite / PostgreSQL"]
+        Prisma["Prisma ORM<br/>PostgreSQL"]
         Wagmi["wagmi + viem<br/>MetaMask · WalletConnect<br/>Coinbase Wallet"]
     end
 
@@ -338,6 +338,7 @@ Fonts:     Epilogue (headlines) · Inter (body) · Space Grotesk (data)
 - **Treasury forwarding** — Donations forwarded directly to treasury address, not held in contract
 
 ### API Security
+- **Rate limiting** — 20 req/min on campaign writes, 10 req/min on IPFS uploads (per IP)
 - **Input validation** — All API routes validate request body/params
 - **Ethereum address regex** — `^0x[0-9a-fA-F]{40}$` format check
 - **CID format validation** — `^[a-zA-Z0-9]+$` to prevent path traversal
@@ -345,6 +346,7 @@ Fonts:     Epilogue (headlines) · Inter (body) · Space Grotesk (data)
 - **File type whitelist** — Only PDF, JPG, PNG allowed for proof documents
 - **File size limit** — 10MB maximum upload
 - **Input truncation** — OG image API truncates inputs to prevent abuse
+- **Env-configurable endpoints** — All service URLs via environment variables
 
 ### Frontend Security
 - **No secrets in client code** — All sensitive values via environment variables
@@ -398,19 +400,27 @@ npx hardhat run scripts/deploy.ts --network localhost
 # Seed demo data (6 campaigns, 21 donations, 15 expenses)
 npx hardhat run scripts/seed-full-demo.ts --network localhost
 
-# Start frontend
+# Setup database
 cd ../web
 npx prisma generate
-npx next dev -p 3939
+npx prisma db push
+
+# Start frontend
+pnpm dev
 ```
 
-Open [http://localhost:3939](http://localhost:3939)
+Open [http://localhost:8881](http://localhost:8881)
 
 ### Environment Variables
 
+Copy `web/.env.example` to `web/.env` and configure:
+
 ```env
-# Database
-DATABASE_URL="postgresql://gotong:gotong123@localhost:5432/gotongledger"
+# RPC
+NEXT_PUBLIC_RPC_URL="http://127.0.0.1:8545"
+
+# Database (matches docker-compose port 5883)
+DATABASE_URL="postgresql://gotong:gotong123@localhost:5883/gotongledger"
 
 # Chain: "localhost" or "sepolia"
 NEXT_PUBLIC_CHAIN_ENV="localhost"
@@ -418,9 +428,9 @@ NEXT_PUBLIC_CHAIN_ENV="localhost"
 # WalletConnect (get from cloud.walletconnect.com)
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID="your-project-id"
 
-# IPFS
-IPFS_API_URL=http://127.0.0.1:5001
-IPFS_GATEWAY_URL="http://127.0.0.1:8080"
+# IPFS (matches docker-compose ports 5881/8882)
+IPFS_API_URL="http://127.0.0.1:5881"
+NEXT_PUBLIC_IPFS_GATEWAY_URL="http://127.0.0.1:8882"
 ```
 
 ---
