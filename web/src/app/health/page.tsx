@@ -399,7 +399,7 @@ export default function HealthPage() {
         {/* Documentation Links */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <a
-            href="http://127.0.0.1:8080"
+            href={process.env.NEXT_PUBLIC_IPFS_GATEWAY_URL || "http://127.0.0.1:8080"}
             target="_blank"
             rel="noopener noreferrer"
             className="ghost-border group rounded-sm bg-[#1C1B1C] p-6 transition-colors hover:bg-[#201F20]"

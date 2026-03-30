@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function GET() {
   try {
@@ -18,6 +19,16 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 20 writes per minute per IP
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  const { allowed } = checkRateLimit(ip, 20, 60_000);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: "Rate limit exceeded. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { chainId, contractAddress, campaignId, title, description, location, coverImage, category } = body;

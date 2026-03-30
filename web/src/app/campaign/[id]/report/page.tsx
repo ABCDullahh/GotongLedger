@@ -942,7 +942,7 @@ export default function CampaignReportPage({ params }: PageProps) {
                           <td className="px-6 py-4 text-center">
                             {hasProof ? (
                               <a
-                                href={`http://127.0.0.1:8080/ipfs/${e.cid}`}
+                                href={`${process.env.NEXT_PUBLIC_IPFS_GATEWAY_URL || "http://127.0.0.1:8080"}/ipfs/${e.cid}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1.5 hover:opacity-80 transition-opacity"

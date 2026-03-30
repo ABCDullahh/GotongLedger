@@ -474,7 +474,7 @@ export default function CampaignDetailPage({ params }: PageProps) {
                             </td>
                             <td className="px-4 py-3.5">
                               <a
-                                href={`http://127.0.0.1:8080/ipfs/${e.cid}`}
+                                href={`${process.env.NEXT_PUBLIC_IPFS_GATEWAY_URL || "http://127.0.0.1:8080"}/ipfs/${e.cid}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-outline hover:text-primary transition-colors flex items-center gap-1.5"

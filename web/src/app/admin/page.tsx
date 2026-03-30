@@ -621,7 +621,7 @@ export default function AdminPage() {
                       {uploadedCid}
                     </code>
                     <a
-                      href={`http://127.0.0.1:8080/ipfs/${uploadedCid}`}
+                      href={`${process.env.NEXT_PUBLIC_IPFS_GATEWAY_URL || "http://127.0.0.1:8080"}/ipfs/${uploadedCid}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-2 inline-block font-label text-xs text-[#FFB3AE] transition-colors hover:text-[#FF5555]"

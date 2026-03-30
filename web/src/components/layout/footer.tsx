@@ -69,7 +69,7 @@ export function Footer() {
           <ul className="space-y-4">
             <li>
               <a
-                href="http://127.0.0.1:8080/ipfs/"
+                href={`${process.env.NEXT_PUBLIC_IPFS_GATEWAY_URL || "http://127.0.0.1:8080"}/ipfs/`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-label text-xs tracking-widest uppercase text-slate-500 hover:text-primary transition-colors"
