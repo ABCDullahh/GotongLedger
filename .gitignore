@@ -52,7 +52,7 @@ web/playwright-report/
 .playwright/
 .playwright-mcp/
 
-# AI tooling
+# Local config
 CLAUDE.md
 .claude/
 megaprompt.md

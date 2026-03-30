@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { CAMPAIGN_LEDGER_ADDRESS, CHAIN_ID } from "@/lib/contracts";
 
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8545";
+const IPFS_API_URL = process.env.IPFS_API_URL || "http://127.0.0.1:5001";
+const IPFS_GATEWAY_URL = process.env.NEXT_PUBLIC_IPFS_GATEWAY_URL || "http://127.0.0.1:8080";
+
 interface HealthStatus {
   service: string;
   status: "healthy" | "unhealthy" | "unknown";
@@ -99,7 +103,7 @@ async function checkService(
 
 async function checkContract(): Promise<boolean> {
   try {
-    const response = await fetch("http://127.0.0.1:8545", {
+    const response = await fetch(RPC_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -122,17 +126,11 @@ export async function GET() {
   try {
     const [rpcStatus, ipfsApiStatus, ipfsGatewayStatus, contractDeployed] =
       await Promise.all([
-        checkService(
-          "Hardhat RPC",
-          "http://127.0.0.1:8545"
-        ),
-        checkService(
-          "IPFS API",
-          "http://127.0.0.1:5001/api/v0/id"
-        ),
+        checkService("Hardhat RPC", RPC_URL),
+        checkService("IPFS API", `${IPFS_API_URL}/api/v0/id`),
         checkService(
           "IPFS Gateway",
-          "http://127.0.0.1:8080/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"
+          `${IPFS_GATEWAY_URL}/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn`
         ),
         checkContract(),
       ]);

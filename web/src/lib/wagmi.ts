@@ -6,6 +6,8 @@ import { injected, walletConnect, coinbaseWallet } from "wagmi/connectors";
 const WALLETCONNECT_PROJECT_ID =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "demo-project-id";
 
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8545";
+
 // Define localhost chain
 const localhost = {
   ...hardhat,
@@ -18,7 +20,7 @@ const localhost = {
   },
   rpcUrls: {
     default: {
-      http: ["http://127.0.0.1:8545"],
+      http: [RPC_URL],
     },
   },
 } as const;
@@ -27,8 +29,8 @@ const localhost = {
 const isProduction = process.env.NEXT_PUBLIC_CHAIN_ENV === "sepolia";
 const activeChains = isProduction ? [sepolia] as const : [localhost] as const;
 const activeTransport = isProduction
-  ? { [sepolia.id]: http() }
-  : { [localhost.id]: http("http://127.0.0.1:8545") };
+  ? { [sepolia.id]: http(process.env.NEXT_PUBLIC_RPC_URL) }
+  : { [localhost.id]: http(RPC_URL) };
 
 export const config = createConfig({
   chains: activeChains as any, // eslint-disable-line @typescript-eslint/no-explicit-any

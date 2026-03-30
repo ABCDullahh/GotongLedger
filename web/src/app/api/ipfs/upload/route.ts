@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { create } from "kubo-rpc-client";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const IPFS_API_URL = process.env.IPFS_API_URL || "http://127.0.0.1:5001";
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -21,6 +22,16 @@ interface UploadResponse {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<UploadResponse>> {
+  // Rate limit: 10 uploads per minute per IP
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  const { allowed } = checkRateLimit(ip, 10, 60_000);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: "Too many uploads. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;

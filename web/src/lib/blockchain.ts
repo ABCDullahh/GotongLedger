@@ -13,19 +13,21 @@ export const CAMPAIGN_LEDGER_ABI = CONTRACT_ABI;
 export const CHAIN_ID = DEPLOYED_CHAIN_ID;
 export const GENESIS_HASH = DEPLOYED_GENESIS_HASH;
 
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8545";
+
 const localhost = {
   ...hardhat,
   id: 31337,
   rpcUrls: {
     default: {
-      http: ["http://127.0.0.1:8545"],
+      http: [RPC_URL],
     },
   },
 } as const;
 
 export const publicClient = createPublicClient({
   chain: localhost,
-  transport: http("http://127.0.0.1:8545"),
+  transport: http(RPC_URL),
 });
 
 // Event types
